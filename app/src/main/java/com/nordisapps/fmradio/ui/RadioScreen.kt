@@ -31,6 +31,7 @@ fun RadioPlayerScreen(
     isSpeakerOn: Boolean,
     scannedStations: List<Double>,
     savedStations: List<Double>,
+    favoriteStations: Set<Double>,
     showScannedStations: Boolean,
     onScaleFrequencyChange: (Double) -> Unit,
     onSeekUpClick: () -> Unit,
@@ -39,7 +40,8 @@ fun RadioPlayerScreen(
     onSpeakerClick: () -> Unit,
     onScanClick: () -> Unit,
     onConfirmScannedStations: () -> Unit,
-    onSavedStationSelected: (Double) -> Unit
+    onSavedStationSelected: (Double) -> Unit,
+    onFavoriteToggle: (Double) -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize()
@@ -149,7 +151,9 @@ fun RadioPlayerScreen(
 
             SavedStationsSection(
                 stations = savedStations,
+                favoriteStations = favoriteStations,
                 onStationSelected = onSavedStationSelected,
+                onFavoriteToggle = onFavoriteToggle,
                 modifier = Modifier.weight(1f)
             )
         }

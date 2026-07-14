@@ -9,5 +9,6 @@ data class RadioUiState(
     val isScanning: Boolean = false,
     val scannedStations: List<Double> = emptyList(),
     val savedStations: List<Double> = emptyList(),
-    val showScannedStations: Boolean = false
+    val showScannedStations: Boolean = false,
+    val favoriteStations: Set<Double> = emptySet()
 )

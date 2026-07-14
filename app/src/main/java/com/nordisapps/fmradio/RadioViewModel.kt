@@ -63,4 +63,19 @@ class RadioViewModel : ViewModel() {
     fun updateShowScannedStations(show: Boolean) {
         uiState = uiState.copy(showScannedStations = show)
     }
+
+    fun toggleFavorite(frequency: Double) {
+        val current = uiState.favoriteStations
+        uiState = uiState.copy(
+            favoriteStations = if (current.contains(frequency)) {
+                current - frequency
+            } else {
+                current + frequency
+            }
+        )
+    }
+
+    fun setFavoriteStations(stations: Set<Double>) {
+        uiState = uiState.copy(favoriteStations = stations)
+    }
 }
