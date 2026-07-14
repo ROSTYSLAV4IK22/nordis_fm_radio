@@ -17,8 +17,10 @@ class FmRadioManager(context: Context) {
     private var lastTuneTimestamp = 0L
     private val minTuneIntervalMs = 1500L
     private val tuneMutex = Mutex()
+    private var lastTunedFreq: Long = -1L
     var onStationNameReceived: ((String) -> Unit)? = null
     var onRadioTextReceived: ((String) -> Unit)? = null
+    var onRdsCleared: (() -> Unit)? = null
     var onScanStarted: (() -> Unit)? = null
     var onChannelFound: ((Double) -> Unit)? = null
     var onScanFinished: (() -> Unit)? = null
@@ -37,6 +39,14 @@ class FmRadioManager(context: Context) {
             }
 
             Log.d("FMTEST", "RDS = $channelName | $radioText")
+        }
+
+        override fun onTuned(freq: Long) {
+            Log.d("FMTEST", "TUNED (listener): $freq")
+            if (freq != lastTunedFreq) {
+                lastTunedFreq = freq
+                onRdsCleared?.invoke()
+            }
         }
 
         override fun onScanStarted() {

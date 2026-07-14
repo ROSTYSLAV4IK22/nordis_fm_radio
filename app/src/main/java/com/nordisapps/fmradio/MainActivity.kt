@@ -36,6 +36,10 @@ class MainActivity : ComponentActivity() {
             viewModel.updateStationName(stationName)
         }
 
+        radioManager.onRdsCleared = {
+            viewModel.clearRds()
+        }
+
         radioManager.onRadioTextReceived = { radioText ->
             viewModel.updateRadioText(radioText)
         }
@@ -85,7 +89,6 @@ class MainActivity : ComponentActivity() {
                 savedStations = viewModel.uiState.savedStations,
                 showScannedStations = viewModel.uiState.showScannedStations,
                 onSeekDownClick = {
-                    viewModel.clearRds()
                     lifecycleScope.launch {
                         val frequency = withContext(Dispatchers.IO) {
                             radioManager.seekDown()
@@ -104,7 +107,6 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onSeekUpClick = {
-                    viewModel.clearRds()
                     lifecycleScope.launch {
                         val frequency = withContext(Dispatchers.IO) {
                             radioManager.seekUp()
@@ -132,8 +134,6 @@ class MainActivity : ComponentActivity() {
                             viewModel.clearRds()
                             stopService(Intent(this@MainActivity, FmRadioForegroundService::class.java))
                         } else {
-                            viewModel.clearRds()
-
                             val frequency = viewModel.uiState.currentFrequency
                                 .toDoubleOrNull()
                                 ?: 87.5
@@ -165,7 +165,6 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onScaleFrequencyChange = { newFreq ->
-                    viewModel.clearRds()
                     lifecycleScope.launch {
                         val tunedFrequency = withContext(Dispatchers.IO) {
                             radioManager.tuneSafe(newFreq)
@@ -198,7 +197,6 @@ class MainActivity : ComponentActivity() {
                     }
                 },
                 onSavedStationSelected = { freq ->
-                    viewModel.clearRds()
                     lifecycleScope.launch {
                         val tuned = withContext(Dispatchers.IO) { radioManager.tuneSafe(freq) }
                         viewModel.updateCurrentFrequency(tuned.toString())
@@ -221,6 +219,7 @@ class MainActivity : ComponentActivity() {
         try {
             radioManager.onStationNameReceived = null
             radioManager.onRadioTextReceived = null
+            radioManager.onRdsCleared = null
             radioManager.stop()
             Log.d("FMTEST", "RADIO OFF ON DESTROY")
         } catch (e: Exception) {
