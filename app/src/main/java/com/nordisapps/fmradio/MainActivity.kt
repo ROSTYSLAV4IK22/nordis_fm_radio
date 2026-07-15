@@ -2,6 +2,7 @@ package com.nordisapps.fmradio
 
 import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -23,8 +24,18 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {}
+    private val recordAudioPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            Log.w("FMTEST", "RECORD_AUDIO denied")
+        }
+    }
     private val radioManager by lazy {
         FmRadioManager(this)
+    }
+    private val fmRadioRecorder by lazy {
+        FmRadioRecorder()
     }
 
     private fun tuneToStation(freq: Double) {
@@ -46,6 +57,10 @@ class MainActivity : ComponentActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            recordAudioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
 
         radioManager.onStationNameReceived = { stationName ->
@@ -116,6 +131,9 @@ class MainActivity : ComponentActivity() {
                         isPlaying = viewModel.uiState.isPlaying,
                         isScanning = viewModel.uiState.isScanning,
                         isSpeakerOn = viewModel.uiState.isSpeakerOn,
+                        isRecording = viewModel.uiState.isRecording,
+                        isRecordingPaused = viewModel.uiState.isRecordingPaused,
+                        recordingTime = viewModel.uiState.recordingTime,
                         scannedStations = viewModel.uiState.scannedStations,
                         savedStations = viewModel.uiState.savedStations,
                         favoriteStations = viewModel.uiState.favoriteStations,
@@ -236,6 +254,30 @@ class MainActivity : ComponentActivity() {
                             lifecycleScope.launch {
                                 favoriteStationsDataStore.saveFavoriteStations(viewModel.uiState.favoriteStations)
                             }
+                        },
+                        onRecordClick = {
+                            try {
+                                val psName = viewModel.uiState.stationName
+                                fmRadioRecorder.startRecording(this, psName)
+                                viewModel.updateRecording(true)
+                                viewModel.updateRecordingPaused(false)
+                            } catch (e: Exception) {
+                                Log.e("FMTEST", "startRecording failed: ${e.message}")
+                            }
+                        },
+                        onRecordPauseClick = {
+                            fmRadioRecorder.pauseOrResumeRecording()
+                            viewModel.updateRecordingPaused(fmRadioRecorder.isRecordingPaused)
+                        },
+                        onRecordStopClick = {
+                            fmRadioRecorder.stopRecording(this)
+                            viewModel.updateRecording(false)
+                            viewModel.updateRecordingPaused(false)
+                        },
+                        onRecordCancelClick = {
+                            fmRadioRecorder.cancelRecording(this)
+                            viewModel.updateRecording(false)
+                            viewModel.updateRecordingPaused(false)
                         }
                     )
                 }
@@ -250,6 +292,9 @@ class MainActivity : ComponentActivity() {
             radioManager.onStationNameReceived = null
             radioManager.onRadioTextReceived = null
             radioManager.onRdsCleared = null
+            if (fmRadioRecorder.isRecording) {
+                fmRadioRecorder.stopRecording(this)
+            }
             radioManager.stop()
             Log.d("FMTEST", "RADIO OFF ON DESTROY")
         } catch (e: Exception) {

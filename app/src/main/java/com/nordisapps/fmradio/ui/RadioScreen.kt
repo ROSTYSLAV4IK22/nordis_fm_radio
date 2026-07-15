@@ -10,8 +10,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Radar
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -33,6 +39,9 @@ fun RadioPlayerScreen(
     savedStations: List<Double>,
     favoriteStations: Set<Double>,
     showScannedStations: Boolean,
+    isRecording: Boolean,
+    isRecordingPaused: Boolean,
+    recordingTime: String,
     onScaleFrequencyChange: (Double) -> Unit,
     onSeekUpClick: () -> Unit,
     onSeekDownClick: () -> Unit,
@@ -41,21 +50,64 @@ fun RadioPlayerScreen(
     onScanClick: () -> Unit,
     onConfirmScannedStations: () -> Unit,
     onSavedStationSelected: (Double) -> Unit,
-    onFavoriteToggle: (Double) -> Unit
+    onFavoriteToggle: (Double) -> Unit,
+    onRecordClick: () -> Unit,
+    onRecordPauseClick: () -> Unit,
+    onRecordStopClick: () -> Unit,
+    onRecordCancelClick: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        IconButton(
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(16.dp),
-            onClick = { onPowerClick() }
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.PowerSettingsNew,
-                contentDescription = null
-            )
+            IconButton(
+                onClick = { onPowerClick() }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PowerSettingsNew,
+                    contentDescription = null
+                )
+            }
+
+            if (!isRecording) {
+                IconButton(
+                    onClick = { onRecordClick() },
+                    enabled = isPlaying
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FiberManualRecord,
+                        tint = if (isPlaying) Color(0xFFD32F2F) else Color.Gray,
+                        contentDescription = null
+                    )
+                }
+            } else {
+                IconButton(onClick = { onRecordPauseClick() }) {
+                    Icon(
+                        imageVector = if (isRecordingPaused)
+                            Icons.Default.PlayArrow
+                        else
+                            Icons.Default.Pause,
+                        contentDescription = null
+                    )
+                }
+                IconButton(onClick = { onRecordStopClick() }) {
+                    Icon(
+                        imageVector = Icons.Default.Stop,
+                        contentDescription = null
+                    )
+                }
+                IconButton(onClick = { onRecordCancelClick() }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null
+                    )
+                }
+            }
         }
 
         Row(
@@ -102,6 +154,20 @@ fun RadioPlayerScreen(
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            if (isRecording) {
+                Text(
+                    text = if (isRecordingPaused)
+                    "Запись приостановлена • $recordingTime"
+                    else
+                        "● Идёт запись... $recordingTime",
+                    color = if (isRecordingPaused)
+                        Color.Gray
+                    else
+                    Color.Red,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+            }
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = onSeekDownClick,
