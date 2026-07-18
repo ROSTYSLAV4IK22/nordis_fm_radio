@@ -69,7 +69,8 @@ class FmRadioRecorder {
             ?: throw IllegalStateException("Не удалось открыть файл записи")
 
         pfd.use { pfd ->
-            mediaRecorder = recorder.apply {
+            mediaRecorder = recorder
+            recorder.apply {
                 @Suppress("WrongConstant")
                 setAudioSource(11) // AUDIO_DEVICE_IN_FM_TUNER
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
@@ -91,7 +92,8 @@ class FmRadioRecorder {
         val outputFile = File(targetDir, "$fileName.m4a")
         currentRecordingFile = outputFile
 
-        mediaRecorder = recorder.apply {
+        mediaRecorder = recorder
+        recorder.apply {
             @Suppress("WrongConstant")
             setAudioSource(11) // AUDIO_DEVICE_IN_FM_TUNER
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
