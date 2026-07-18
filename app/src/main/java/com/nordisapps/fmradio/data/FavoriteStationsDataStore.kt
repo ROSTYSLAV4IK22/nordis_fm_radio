@@ -1,4 +1,4 @@
-package com.nordisapps.fmradio
+package com.nordisapps.fmradio.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit

@@ -1,23 +1,25 @@
 package com.nordisapps.fmradio
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioManager
-import android.os.IBinder
 import android.util.Log
-import com.nordisapps.fmradio.fm.IFMPlayer
+import com.nordisapps.fmradio.fm.IFMPlayerProxy
+import com.nordisapps.fmradio.fm.RadioEventListener
+import com.nordisapps.fmradio.system.SamsungAudioRouter
+import com.nordisapps.fmradio.system.SystemServiceLocator
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.getValue
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 class FmRadioManager(context: Context) {
     private val radio by lazy { connectRadio() }
-    private val audioManager = context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val audioManager =
+        context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var lastTuneTimestamp = 0L
     private val minTuneIntervalMs = 1500L
     private val tuneMutex = Mutex()
-    private var lastTunedFreq: Long = -1L
     var onStationNameReceived: ((String) -> Unit)? = null
     var onRadioTextReceived: ((String) -> Unit)? = null
     var onRdsCleared: (() -> Unit)? = null
@@ -25,93 +27,48 @@ class FmRadioManager(context: Context) {
     var onChannelFound: ((Double) -> Unit)? = null
     var onScanFinished: (() -> Unit)? = null
     var onScanStopped: ((List<Double>) -> Unit)? = null
-    private val listener = object : FMEventListener() {
-        override fun onRadioDataSystemReceived(
-            freq: Long,
-            channelName: String?,
-            radioText: String?
-        ) {
-            if (!channelName.isNullOrBlank()) {
-                onStationNameReceived?.invoke(channelName)
-            }
-            if (!radioText.isNullOrBlank()) {
-                onRadioTextReceived?.invoke(radioText)
-            }
+    private val listener = RadioEventListener(
+        onStationNameReceived = { onStationNameReceived?.invoke(it) },
+        onRadioTextReceived = { onRadioTextReceived?.invoke(it) },
+        onRdsCleared = { onRdsCleared?.invoke() },
+        onScanStarted = { onScanStarted?.invoke() },
+        onChannelFound = { onChannelFound?.invoke(it) },
+        onScanFinished = { onScanFinished?.invoke() },
+        onScanStopped = { onScanStopped?.invoke(it) }
+    )
 
-            Log.d("FMTEST", "RDS = $channelName | $radioText")
-        }
-
-        override fun onTuned(freq: Long) {
-            Log.d("FMTEST", "TUNED (listener): $freq")
-            if (freq != lastTunedFreq) {
-                lastTunedFreq = freq
-                onRdsCleared?.invoke()
-            }
-        }
-
-        override fun onScanStarted() {
-            Log.d("FMTEST", "SCAN STARTED")
-            this@FmRadioManager.onScanStarted?.invoke()
-        }
-
-        override fun onChannelFound(freq: Long) {
-            Log.d("FMTEST", "CHANNEL FOUND: $freq")
-            this@FmRadioManager.onChannelFound?.invoke(freq / 1000.0)
-        }
-
-        override fun onScanFinished(freqs: LongArray) {
-            Log.d("FMTEST", "SCAN FINISHED (event only, ignoring empty array)")
-            this@FmRadioManager.onScanFinished?.invoke()
-        }
-
-        override fun onScanStopped(freqs: LongArray) {
-            Log.d("FMTEST", "SCAN STOPPED: ${freqs.toList()}")
-            this@FmRadioManager.onScanStopped?.invoke(freqs.map { it / 1000.0 })
+    @Suppress("SameParameterValue")
+    private inline fun <T> safeCall(methodName: String, default: T, action: () -> T): T {
+        return try {
+            action()
+        } catch (e: Exception) {
+            Log.e("FmRadioManager", "$methodName EXCEPTION: ${e.message}", e)
+            default
         }
     }
 
-    @SuppressLint("PrivateApi")
-    private fun connectRadio(): IFMPlayer.Proxy {
-        val serviceManagerClass =
-            Class.forName("android.os.ServiceManager")
-
-        val getServiceMethod =
-            serviceManagerClass.getMethod(
-                "getService",
-                String::class.java
-            )
-
-        val binder =
-            getServiceMethod.invoke(
-                null,
-                "FMPlayer"
-            ) as IBinder
-
-        Log.d(
-            "FMTEST",
-            "BINDER = $binder"
-        )
-
-        return IFMPlayer.Proxy(binder)
+    private fun connectRadio(): IFMPlayerProxy {
+        val binder = SystemServiceLocator.getService("FMPlayer")
+        Log.d("FmRadioManager", "BINDER = $binder")
+        return IFMPlayerProxy(binder)
     }
 
     fun play() {
         try {
             val headset = radio.isHeadsetPlugged()
-            Log.d("FMTEST", "HEADSET = $headset")
+            Log.d("FmRadioManager", "HEADSET = $headset")
             if (!headset) {
                 return
             }
 
             val on = radio.on()
-            Log.d("FMTEST", "RADIO ON = $on")
-
+            Log.d("FmRadioManager", "RADIO ON = $on")
             radio.setListener(listener)
             radio.enableRDS()
             radio.disableAF()
             radio.setStereo()
             radio.setSoftmute(false)
-            Log.d("FMTEST", "SoftMute = ${radio.getSoftMuteMode()}")
+            Log.d("FmRadioManager", "SoftMute = ${radio.getSoftMuteMode()}")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -135,7 +92,7 @@ class FmRadioManager(context: Context) {
             Log.d("FmRadioManager", "TUNED TO $frequency")
 
             val currentChannel = radio.getCurrentChannel()
-            Log.d("FMTEST", "CURRENT CHANNEL: $currentChannel")
+            Log.d("FmRadioManager", "CURRENT CHANNEL: $currentChannel")
             val result = currentChannel / 1000.0
             (result * 20).roundToInt() / 20.0
         } catch (e: Exception) {
@@ -157,9 +114,7 @@ class FmRadioManager(context: Context) {
 
         return try {
             val frequency = radio.seekUp()
-
-            Log.d("FMTEST", "SEEK UP = $frequency")
-
+            Log.d("FmRadioManager", "SEEK UP = $frequency")
             frequency / 1000.0
         } catch (e: Exception) {
             e.printStackTrace()
@@ -174,9 +129,7 @@ class FmRadioManager(context: Context) {
 
         return try {
             val frequency = radio.seekDown()
-
-            Log.d("FMTEST", "SEEK DOWN = $frequency")
-
+            Log.d("FmRadioManager", "SEEK DOWN = $frequency")
             frequency / 1000.0
         } catch (e: Exception) {
             e.printStackTrace()
@@ -187,93 +140,32 @@ class FmRadioManager(context: Context) {
     fun scan() {
         try {
             radio.scan()
-            Log.d("FMTEST", "SCAN CALLED")
+            Log.d("FmRadioManager", "SCAN CALLED")
         } catch (e: Exception) {
-            Log.e("FMTEST", "scan EXCEPTION: ${e.message}", e)
-        }
-    }
-
-    fun cancelScan(): Boolean {
-        return try {
-            radio.cancelScan()
-        } catch (e: Exception) {
-            Log.e("FMTEST", "cancelScan EXCEPTION: ${e.message}", e)
-            false
-        }
-    }
-
-    fun isScanning(): Boolean {
-        return try {
-            radio.isScanning()
-        } catch (e: Exception) {
-            false
+            Log.e("FmRadioManager", "scan EXCEPTION: ${e.message}", e)
         }
     }
 
     fun getLastScanResult(): List<Double> {
-        return try {
+        return safeCall("getLastScanResult", emptyList()) {
             radio.getLastScanResult().map { it / 1000.0 }
-        } catch (e: Exception) {
-            Log.e("FMTEST", "getLastScanResult EXCEPTION: ${e.message}", e)
-            emptyList()
         }
     }
 
     fun setSpeakerOn(enabled: Boolean): Boolean {
         return try {
             radio.setSpeakerOn(enabled)
-
-            val audioManagerClass = AudioManager::class.java
-
-            val semSetRadioOutputPathMethod = audioManagerClass.getMethod(
-                "semSetRadioOutputPath",
-                Int::class.javaPrimitiveType
-            )
-
-            val pathValue = if (enabled) 2 else 3
-            val setResult = semSetRadioOutputPathMethod.invoke(audioManager, pathValue)
-            Log.d("FMTEST", "semSetRadioOutputPath($pathValue) result = $setResult")
-
-            val semGetRadioOutputPathMethod = audioManagerClass.getMethod("semGetRadioOutputPath")
-            val currentPath = semGetRadioOutputPathMethod.invoke(audioManager) as Int
-            Log.d("FMTEST", "semGetRadioOutputPath() = $currentPath")
-
-            currentPath == 2
+            SamsungAudioRouter.setRadioOutputPath(audioManager, enabled)
         } catch (e: Exception) {
-            Log.e("FMTEST", "setSpeakerOn EXCEPTION: ${e.message}", e)
+            Log.e("FmRadioManager", "setSpeakerOn EXCEPTION: ${e.message}", e)
             false
-        }
-    }
-
-    fun getSoftMuteMode(): Boolean {
-        if (!radio.isOn()) {
-            return false
-        }
-
-        return try {
-            radio.getSoftMuteMode()
-        } catch (e: Exception) {
-            Log.e("FMTEST", "EXCEPTION: ${e.message}", e)
-            false
-        }
-    }
-
-    fun getIntegerTunningParameter(
-        key: String,
-        defaultValue: Int
-    ): Int {
-        return try {
-            radio.getIntegerTunningParameter(key, defaultValue)
-        } catch (e: Exception) {
-            Log.e("FMTEST", "EXCEPTION: ${e.message}", e)
-            defaultValue
         }
     }
 
     fun stop() {
         try {
             val off = radio.off()
-            Log.d("FMTEST", "RADIO OFF = $off")
+            Log.d("FmRadioManager", "RADIO OFF = $off")
         } catch (e: Exception) {
             e.printStackTrace()
         }

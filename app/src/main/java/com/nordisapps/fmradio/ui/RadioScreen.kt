@@ -56,163 +56,58 @@ fun RadioPlayerScreen(
     onRecordStopClick: () -> Unit,
     onRecordCancelClick: () -> Unit
 ) {
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = { onPowerClick() }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PowerSettingsNew,
-                    contentDescription = null
-                )
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        PlaybackControlsRow(
+            isPlaying = isPlaying,
+            isRecording = isRecording,
+            isRecordingPaused = isRecordingPaused,
+            onPowerClick = onPowerClick,
+            onRecordClick = onRecordClick,
+            onRecordPauseClick = onRecordPauseClick,
+            onRecordStopClick = onRecordStopClick,
+            onRecordCancelClick = onRecordCancelClick,
+            modifier = Modifier.align(Alignment.TopStart).padding(16.dp)
+        )
 
-            if (!isRecording) {
-                IconButton(
-                    onClick = { onRecordClick() },
-                    enabled = isPlaying
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FiberManualRecord,
-                        tint = if (isPlaying) Color(0xFFD32F2F) else Color.Gray,
-                        contentDescription = null
-                    )
-                }
-            } else {
-                IconButton(onClick = { onRecordPauseClick() }) {
-                    Icon(
-                        imageVector = if (isRecordingPaused)
-                            Icons.Default.PlayArrow
-                        else
-                            Icons.Default.Pause,
-                        contentDescription = null
-                    )
-                }
-                IconButton(onClick = { onRecordStopClick() }) {
-                    Icon(
-                        imageVector = Icons.Default.Stop,
-                        contentDescription = null
-                    )
-                }
-                IconButton(onClick = { onRecordCancelClick() }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = { onScanClick() },
-                enabled = isPlaying && !isScanning
-            ) {
-                if (isScanning) {
-                    CircularProgressIndicator(modifier = Modifier.padding(4.dp))
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Radar,
-                        contentDescription = null
-                    )
-                }
-            }
-
-            IconButton(
-                onClick = { onSpeakerClick() },
-                enabled = isPlaying
-            ) {
-                Icon(
-                    imageVector = if (isSpeakerOn)
-                        Icons.AutoMirrored.Filled.VolumeUp
-                    else
-                        Icons.AutoMirrored.Filled.VolumeOff,
-                    contentDescription = null
-                )
-            }
-        }
+        ScanSpeakerRow(
+            isPlaying = isPlaying,
+            isScanning = isScanning,
+            isSpeakerOn = isSpeakerOn,
+            onScanClick = onScanClick,
+            onSpeakerClick = onSpeakerClick,
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+        )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = 96.dp,
-                    start = 16.dp,
-                    end = 16.dp
-                ),
+                .padding(top = 96.dp, start = 16.dp, end = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isRecording) {
-                Text(
-                    text = if (isRecordingPaused)
-                    "Запись приостановлена • $recordingTime"
-                    else
-                        "● Идёт запись... $recordingTime",
-                    color = if (isRecordingPaused)
-                        Color.Gray
-                    else
-                    Color.Red,
+                RecordingStatusText(
+                    isRecordingPaused = isRecordingPaused,
+                    recordingTime = recordingTime,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onSeekDownClick,
-                    enabled = isPlaying
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBackIosNew,
-                        contentDescription = null
-                    )
-                }
-
-                FrequencyDisplay(
-                    currentFrequency = currentFrequency,
-                    onFrequencyConfirmed = { newFreq ->
-                        onScaleFrequencyChange(newFreq)
-                    }
-                )
-
-                IconButton(
-                    onClick = onSeekUpClick,
-                    enabled = isPlaying
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = null
-                    )
-                }
-            }
-
-            Text(
-                text = stationName
+            FrequencyTuningRow(
+                currentFrequency = currentFrequency,
+                isPlaying = isPlaying,
+                onSeekDownClick = onSeekDownClick,
+                onSeekUpClick = onSeekUpClick,
+                onFrequencyConfirmed = onScaleFrequencyChange
             )
 
-            Text(
-                text = radioText,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            Text(text = stationName)
+            Text(text = radioText, modifier = Modifier.padding(bottom = 12.dp))
 
             FrequencyScale(
                 currentFrequency = currentFrequency.toFloatOrNull() ?: 87.5f,
                 isPlaying = isPlaying,
-                onFrequencyChange = { newFreq ->
-                    onScaleFrequencyChange(newFreq.toDouble())
-                },
-                modifier = Modifier.padding(top = 0.dp, bottom = 24.dp)
+                onFrequencyChange = { onScaleFrequencyChange(it.toDouble()) },
+                modifier = Modifier.padding(bottom = 24.dp)
             )
 
             SavedStationsSection(
@@ -224,10 +119,114 @@ fun RadioPlayerScreen(
             )
         }
     }
+
     if (showScannedStations) {
-        ScannedStationsSheet(
-            stations = scannedStations,
-            onConfirm = onConfirmScannedStations
-        )
+        ScannedStationsSheet(stations = scannedStations, onConfirm = onConfirmScannedStations)
     }
+}
+
+@Composable
+private fun PlaybackControlsRow(
+    isPlaying: Boolean,
+    isRecording: Boolean,
+    isRecordingPaused: Boolean,
+    onPowerClick: () -> Unit,
+    onRecordClick: () -> Unit,
+    onRecordPauseClick: () -> Unit,
+    onRecordStopClick: () -> Unit,
+    onRecordCancelClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onPowerClick) {
+            Icon(Icons.Default.PowerSettingsNew, contentDescription = null)
+        }
+
+        if (!isRecording) {
+            IconButton(onClick = onRecordClick, enabled = isPlaying) {
+                Icon(
+                    imageVector = Icons.Default.FiberManualRecord,
+                    tint = if (isPlaying) Color(0xFFD32F2F) else Color.Gray,
+                    contentDescription = null
+                )
+            }
+        } else {
+            IconButton(onClick = onRecordPauseClick) {
+                Icon(
+                    imageVector = if (isRecordingPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = null
+                )
+            }
+            IconButton(onClick = onRecordStopClick) {
+                Icon(Icons.Default.Stop, contentDescription = null)
+            }
+            IconButton(onClick = onRecordCancelClick) {
+                Icon(Icons.Default.Close, contentDescription = null)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanSpeakerRow(
+    isPlaying: Boolean,
+    isScanning: Boolean,
+    isSpeakerOn: Boolean,
+    onScanClick: () -> Unit,
+    onSpeakerClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onScanClick, enabled = isPlaying && !isScanning) {
+            if (isScanning) {
+                CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+            } else {
+                Icon(Icons.Default.Radar, contentDescription = null)
+            }
+        }
+
+        IconButton(onClick = onSpeakerClick, enabled = isPlaying) {
+            Icon(
+                imageVector = if (isSpeakerOn) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
+                contentDescription = null
+            )
+        }
+    }
+}
+
+@Composable
+private fun FrequencyTuningRow(
+    currentFrequency: String,
+    isPlaying: Boolean,
+    onSeekDownClick: () -> Unit,
+    onSeekUpClick: () -> Unit,
+    onFrequencyConfirmed: (Double) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onSeekDownClick, enabled = isPlaying) {
+            Icon(Icons.Default.ArrowBackIosNew, contentDescription = null)
+        }
+
+        FrequencyDisplay(
+            currentFrequency = currentFrequency,
+            onFrequencyConfirmed = onFrequencyConfirmed
+        )
+
+        IconButton(onClick = onSeekUpClick, enabled = isPlaying) {
+            Icon(Icons.AutoMirrored.Filled.ArrowForwardIos, contentDescription = null)
+        }
+    }
+}
+
+@Composable
+private fun RecordingStatusText(
+    isRecordingPaused: Boolean,
+    recordingTime: String,
+    modifier: Modifier = Modifier
+) {
+    Text(
+        text = if (isRecordingPaused) "Запись приостановлена • $recordingTime" else "● Идёт запись... $recordingTime",
+        color = if (isRecordingPaused) Color.Gray else Color.Red,
+        modifier = modifier
+    )
 }

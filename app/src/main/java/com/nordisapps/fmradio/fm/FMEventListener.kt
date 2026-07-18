@@ -1,9 +1,8 @@
-package com.nordisapps.fmradio
+package com.nordisapps.fmradio.fm
 
 import android.util.Log
-import com.nordisapps.fmradio.fm.IFMEventListener
 
-open class FMEventListener : IFMEventListener.Stub() {
+open class FMEventListener : IFMEventListenerStub() {
     override fun onRadioEnabled() {
         Log.d("FMTEST", "RADIO ENABLED")
     }
