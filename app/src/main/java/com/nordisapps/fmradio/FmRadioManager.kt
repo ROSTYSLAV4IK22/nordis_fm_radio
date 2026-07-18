@@ -130,8 +130,9 @@ class FmRadioManager(context: Context) {
         lastTuneTimestamp = System.currentTimeMillis()
 
         return try {
-            radio.tune((frequency * 1000).toLong())
-            Log.d("FMTEST", "TUNED TO $frequency")
+            val freqKhz = (frequency * 1000).roundToLong()
+            radio.tune(freqKhz)
+            Log.d("FmRadioManager", "TUNED TO $frequency")
 
             val currentChannel = radio.getCurrentChannel()
             Log.d("FMTEST", "CURRENT CHANNEL: $currentChannel")

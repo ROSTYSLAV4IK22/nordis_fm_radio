@@ -21,10 +21,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun FrequencyScale(
@@ -57,13 +55,6 @@ fun FrequencyScale(
         displayFreq = currentFrequency
     }
 
-    LaunchedEffect(displayFreq) {
-        if (displayFreq != currentFrequency) {
-            delay(150.milliseconds)
-            onFrequencyChange(displayFreq)
-        }
-    }
-
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -72,6 +63,7 @@ fun FrequencyScale(
                 if (!isPlaying) return@pointerInput
                 detectHorizontalDragGestures(
                     onDragStart = { dragAccumulator = 0f },
+                    onDragEnd = { onFrequencyChange(displayFreq) },
                     onHorizontalDrag = { change, dragAmount ->
                         change.consume()
                         dragAccumulator += dragAmount
